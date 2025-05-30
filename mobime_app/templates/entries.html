@@ -1,0 +1,34 @@
+
+<!doctype html>
+<html>
+<head>
+  <title>MobiMe Records</title>
+</head>
+<body>
+  <h2>Submitted Entries</h2>
+  <table border="1" cellpadding="5">
+    <tr>
+      <th>ID</th><th>Emp Code</th><th>Start</th><th>End</th>
+      <th>SON</th><th>SOFF</th><th>Paid</th><th>Day Type</th>
+      <th>Start Site</th><th>End Site</th><th>Type</th><th>Delete</th>
+    </tr>
+    {% for row in entries %}
+    <tr>
+      <td>{{ row.Record_Id }}</td>
+      <td>{{ row.Emp_Day_Code }}</td>
+      <td>{{ row.Start_Time_Military }}</td>
+      <td>{{ row.End_Time_Military }}</td>
+      <td>{{ row.SON }}</td>
+      <td>{{ row.SOFF }}</td>
+      <td>{{ row.Paid_Hours }}</td>
+      <td>{{ row.Day_Type }}</td>
+      <td>{{ row.StartSite }}</td>
+      <td>{{ row.EndSite }}</td>
+      <td>{{ row.Work_Type_Code }}</td>
+      <td><a href="/delete/{{ row.Record_Id }}">Delete</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><a href="/">← Back to Form</a></p>
+</body>
+</html>

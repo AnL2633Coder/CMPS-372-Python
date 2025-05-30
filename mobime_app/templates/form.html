@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>MobiMe Entry Form + Table</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; }
+    table { border-collapse: collapse; margin-bottom: 20px; width: 100%; }
+    th, td { padding: 6px 10px; border: 1px solid #ccc; text-align: center; }
+    th { background-color: #f0f0f0; }
+    input[type="text"], select { width: 90px; padding: 4px; }
+    input[type="number"] { width: 60px; }
+    .days input { transform: scale(1.2); }
+    .actions { margin-top: 10px; }
+    .logo { position: absolute; top: 20px; right: 40px; width: 180px; }
+    .header { display: flex; align-items: center; justify-content: space-between; background-color: #d32f2f; padding: 15px 20px; border-radius: 6px; margin-bottom: 20px; }
+    .header .title { flex: 1; text-align: center; font-size: 24px; margin: 0; color: white; font-weight: bold; }
+    .left-logo, .right-logo { height: 50px; }
+    .right-logo { height: auto; width: 200px; max-width: 100%; }
+  </style>
+
+  <script>
+    // Automatically format time input fields
+    function formatTimeInput(fieldId) {
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+      field.addEventListener('input', () => {
+        let v = field.value.replace(/[^0-9]/g, '');
+        if (v.length === 4) {
+          field.value = v.substring(0, 2) + ':' + v.substring(2);
+        }
+      });
+    }
+
+    // Calculate paid hours based on start, end, and break time
+    function calculatePaid() {
+      const parseTime = str => {
+        if (!str || !str.includes(":")) return 0;
+        const [h, m] = str.split(":").map(Number);
+        return h + m / 60;
+      };
+
+      const start = parseTime(document.getElementById("start").value);
+      const end = parseTime(document.getElementById("end").value);
+      const breakStart = parseTime(document.getElementById("break_start").value);
+      const breakEnd = parseTime(document.getElementById("break_end").value);
+
+      let paid = (end - start) - (breakEnd - breakStart);
+      if (paid < 0) paid += 24;
+      document.getElementById("paid").value = paid.toFixed(2);
+    }
+
+    // Auto-check day boxes based on selected day type
+    function autoCheckDays() {
+      const selected = document.getElementById("day_type").value;
+      const map = {
+        "7Day": ["sun","mon","tue","wed","thu","fri","sat"],
+        "WKDY": ["mon","tue","wed","thu","fri"],
+        "Sat": ["sat"],
+        "Sun": ["sun"],
+        "Blank": []
+      };
+      ["sun","mon","tue","wed","thu","fri","sat"].forEach(id => {
+        document.getElementById(id).checked = false;
+      });
+      if (map[selected]) {
+        map[selected].forEach(id => document.getElementById(id).checked = true);
+      }
+    }
+
+    // Setup formatting and event listeners on load
+    window.onload = function() {
+      ['start','end','break_start','break_end','son','soff'].forEach(formatTimeInput);
+      document.querySelectorAll('input').forEach(el => {
+        el.addEventListener('blur', calculatePaid);
+      });
+    };
+  </script>
+
+</head>
+<body>
+  <div class="header">
+    <img class="left-logo" src="{{ url_for('static', filename='transdev_logo.png') }}" alt="Transdev Logo">
+    <h2 class="title">MobiMe Schedule Entry</h2>
+    <img class="right-logo" src="{{ url_for('static', filename='bus_logo.png') }}" alt="Bus Logo">
+  </div>
+
+  <form method="POST" action="{{ '/update/' + row.Record_Id|string if row else '/submit' }}">
+    <table>
+      <tr>
+        <th>Day Type</th><th>Type</th><th>Duty</th><th>Start</th><th>SON</th>
+        <th>BreakStart</th><th>BreakEnd</th><th>SOFF</th><th>End</th>
+        <th>Paid</th><th>Start Site</th><th>End Site</th>
+      </tr>
+      <tr>
+        <td><select name="day_type" id="day_type" onchange="autoCheckDays()">
+          {% for opt in ['7Day','WKDY','Sat','Sun','Blank'] %}
+          <option value="{{ opt }}" {% if row and row.Day_Type == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select></td>
+        <td>
+          <select name="type">
+            {% for w in work_types %}
+              <option value="{{ w.Work_Type_Code }}"
+                {% if (not row and w.Work_Type_Code == 'PARA') or (row and row.Work_Type_Code == w.Work_Type_Code) %}selected{% endif %}>
+                {{ w.Work_Type_Code }}
+              </option>
+            {% endfor %}
+          </select>
+        </td>
+        <td><input name="duty" value="{{ row.Emp_Day_Code if row else '' }}" required></td>
+        <td><input id="start" name="start" value="{{ row.Start_Time_Military if row else '' }}" required></td>
+        <td><input id="son" name="son" value="{{ row.SON if row else '' }}"></td>
+        <td><input id="break_start" name="break_start"></td>
+        <td><input id="break_end" name="break_end"></td>
+        <td><input id="soff" name="soff" value="{{ row.SOFF if row else '' }}"></td>
+        <td><input id="end" name="end" value="{{ row.End_Time_Military if row else '' }}" required></td>
+        <td><input id="paid" name="paid" value="{{ row.Paid_Hours if row else '0.00' }}" readonly></td>
+        <td><select name="start_site_id">
+          {% for s in sites %}
+          <option value="{{ s.Site_Id }}" {% if row and row.Start_Site_Id == s.Site_Id %}selected{% endif %}>{{ s.Site_Code }}</option>
+          {% endfor %}</select></td>
+        <td><select name="end_site_id">
+          {% for s in sites %}
+          <option value="{{ s.Site_Id }}" {% if row and row.End_Site_Id == s.Site_Id %}selected{% endif %}>{{ s.Site_Code }}</option>
+          {% endfor %}</select></td>
+      </tr>
+    </table>
+    <table class="days">
+      <tr><th colspan="7">Days</th></tr>
+      <tr>
+        {% for d, id in [('sun', 1), ('mon', 2), ('tue', 3), ('wed', 4), ('thu', 5), ('fri', 6), ('sat', 7)] %}
+        <td><input type="checkbox" name="{{ d }}" id="{{ d }}" {% if assigned_days and id in assigned_days %}checked{% endif %}> {{ d.capitalize() }}</td>
+        {% endfor %}
+      </tr>
+    </table>
+    <p><button type="submit">{{ 'Update Entry' if row else 'Submit' }}</button></p>
+  </form>
+
+  <h2>Existing Entries</h2>
+  <form method="POST" action="/bulk">
+    <table>
+      <tr>
+        <th>Select</th><th>ID</th><th>Day Type</th><th>Type</th><th>Duty</th><th>Start</th>
+        <th>SON</th><th>BreakStart</th><th>BreakEnd</th><th>SOFF</th><th>End</th><th>Paid</th>
+        <th>Delete</th>
+      </tr>
+      {% for row in entries %}
+      <tr>
+        <td><input type="checkbox" name="selected_ids" value="{{ row.Record_Id }}"></td>
+        <td>{{ row.Record_Id }}</td>
+        <td>{{ row.Day_Type }}</td>
+        <td>{{ row.Work_Type_Code }}</td>
+        <td>{{ row.Emp_Day_Code }}</td>
+        <td>{{ row.Start_Time_Military }}</td>
+        <td>{{ row.SON }}</td>
+        <td></td>
+        <td></td>
+        <td>{{ row.SOFF }}</td>
+        <td>{{ row.End_Time_Military }}</td>
+        <td>{{ row.Paid_Hours }}</td>
+        <td><a href="/delete/{{ row.Record_Id }}">🗑</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+    <div class="actions">
+      <button formaction="/edit" formmethod="POST">Edit Selected</button>
+      <button formaction="/delete_selected" formmethod="POST">Delete Selected</button>
+      <button formaction="/export_csv" formmethod="POST">Export CSV</button>
+    </div>
+  </form>
+</body>
+</html>
